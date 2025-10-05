@@ -23,17 +23,17 @@ jobs:
         python -m pip install --upgrade pip
         pip install -r requirements.txt
         pip install pyinstaller
-        # 确保安装正确版本的numpy
         pip install numpy==1.24.3
-        
+
     - name: Build executable
+      shell: cmd
       run: |
         pyinstaller -D -w -n ClassVoiceMonitor ^
           --hidden-import=numpy.core._multiarray_umath ^
           --hidden-import=numpy.core._multiarray_tests ^
           --collect-all numpy ^
           ClassVoiceMonitor.py
-          
+
     - name: Upload artifacts
       uses: actions/upload-artifact@v4
       with:
