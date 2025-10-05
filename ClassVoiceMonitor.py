@@ -1,3 +1,5 @@
+import json
+import logging
 import sys
 import numpy as np
 import pyaudio
@@ -159,9 +161,13 @@ class ReportDialog(QDialog):
         layout.addLayout(button_layout)
 
 
-class AudioMeter(QMainWindow):
+class Main(QMainWindow):
     def __init__(self):
         super().__init__()
+
+        self.version = "1.0.0"
+        self.config_version = "1.0.0"
+
         self.audio_level_history = []  # 用于平滑音频级别
         self.history_size = 5  # 平滑窗口大小
         self.max_rms = 10000  # 初始灵敏度值
@@ -180,10 +186,11 @@ class AudioMeter(QMainWindow):
         self.is_recording = False
         self.start_time = None
         self.end_time = None
-        self.rating_history = []  # 记录每次评级
-        self.combo_history = []  # 记录连击历史
+        self.rating_history = []
+        self.combo_history = []
 
         self.init_ui()
+        self.read_config()
 
     def init_ui(self):
         """初始化用户界面"""
@@ -267,7 +274,7 @@ class AudioMeter(QMainWindow):
 
         # 灵敏度校准滑块
         sensitivity_layout = QHBoxLayout()
-        sensitivity_label = QLabel("灵敏度校准:")
+        sensitivity_label = QLabel("Max RMS:")
         sensitivity_label.setFont(QFont("Microsoft YaHei", 10))
         sensitivity_layout.addWidget(sensitivity_label)
 
@@ -309,7 +316,76 @@ class AudioMeter(QMainWindow):
         # 创建状态栏
         self.status_bar = QStatusBar()
         self.setStatusBar(self.status_bar)
-        self.status_bar.showMessage("准备开始")
+        self.status_bar.showMessage("准备就绪")
+
+    def read_config(self):
+        """配置文件读取"""
+        os.makedirs('./ClassVoiceMonitor/', exist_ok=True)
+        config_file_dir = r'./ClassVoiceMonitor/config.json'
+
+        def create_config():
+            if not os.path.exists(config_file_dir):
+                with open(config_file_dir, 'w+', encoding='utf-8') as config_file:
+                    json.dump(config_default, config_file)
+            logging.warning(f"已创建配置文件:{config_file_dir}")
+
+        try:
+            config_default = {
+                'config_version': self.config_version,
+                'window_width': self.width(),
+                'window_height': self.height(),
+                'max_rms': self.max_rms,
+            }
+
+            try:
+                with open(config_file_dir, encoding='utf-8') as config_file:
+                    # 读取并将配置赋值给变量
+                    config = json.load(config_file)
+
+                    self.max_rms = config['max_rms']
+                    self.sensitivity_slider.setValue(self.max_rms)
+                    self.sensitivity_value_label.setText(str(self.max_rms))
+
+                    window_width = config['window_width']
+                    window_height = config['window_height']
+                    self.resize(window_width, window_height)
+
+            except FileNotFoundError as e:
+                logging.warning(f"文件不存在:{str(e)}.尝试创建配置文件...")
+                create_config()
+
+
+        except Exception as e:
+            logging.error(f'配置文件读写错误:{str(e)}')
+            QMessageBox.critical(self, '错误',
+                                 '配置文件读写错误!\n请尝试删除配置文件夹中的config.json\n错误信息:' + str(e))
+
+    def save_config(self):
+        """配置文件写入"""
+        try:
+            config_file_dir = r'./ClassVoiceMonitor/config.json'
+            with open(config_file_dir, 'r', encoding='utf-8') as config_file:
+                # 读取格式并覆写值
+                config = json.load(config_file)
+                config['window_width'] = self.width()
+                config['window_height'] = self.height()
+                config['max_rms'] = self.max_rms
+            with open(config_file_dir, 'w', encoding='utf-8') as config_file:
+                # 写入覆写后的 config
+                json.dump(config, config_file, ensure_ascii=False)
+                logger.info(f"配置文件已保存:{config_file_dir}")
+        except Exception as e:
+            logging.critical(f"配置文件写入错误:{str(e)}")
+            QMessageBox.critical(self, '错误', '配置文件写入错误！')
+
+    # def resizeEvent(self, event):
+    #     """重写窗口大小变化事件处理"""
+    #     super().resizeEvent(event)
+    #     # 取消未执行的保存操作，重新开始计时
+    #     self.save_timer.stop()
+    #     # 延迟500毫秒后触发保存
+    #     self.save_timer.start(500)
+    #     logging.debug(f"窗口尺寸已改变 → 宽度: {current_width}px, 高度: {current_height}px")
 
     def update_sensitivity(self, value):
         """更新灵敏度值"""
@@ -664,6 +740,7 @@ class AudioMeter(QMainWindow):
     def closeEvent(self, event):
         """关闭窗口时清理资源"""
         logger.info("正在关闭应用，清理资源...")
+        self.save_config()
         try:
             if hasattr(self, 'timer') and self.timer.isActive():
                 self.timer.stop()
@@ -693,7 +770,7 @@ def main():
 
     app.setStyle('Fusion')
 
-    window = AudioMeter()
+    window = Main()
     window.show()
 
     logger.info("应用启动成功")
