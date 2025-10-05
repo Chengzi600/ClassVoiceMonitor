@@ -1,0 +1,5 @@
+loguru==0.7.3
+numpy==1.23.5
+PyAudio==0.2.14
+PyQt5==5.15.11
+PyQt5_sip==12.15.0

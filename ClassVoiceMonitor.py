@@ -165,7 +165,7 @@ class Main(QMainWindow):
     def __init__(self):
         super().__init__()
 
-        self.version = "1.0.0"
+        self.version = "0.1.1"
         self.config_version = "1.0.0"
 
         self.audio_level_history = []  # 用于平滑音频级别
@@ -194,8 +194,8 @@ class Main(QMainWindow):
 
     def init_ui(self):
         """初始化用户界面"""
-        self.setWindowTitle("ClassVoiceMonitor")
-        self.setMinimumSize(500, 500)
+        self.setWindowTitle(f"ClassVoiceMonitor - v{self.version}")
+        self.setMinimumSize(500, 680)
 
         # 创建中央部件
         central_widget = QWidget()
@@ -501,19 +501,29 @@ class Main(QMainWindow):
     def save_report(self, report_data):
         """保存报告到文件"""
         # 创建日志目录
-        log_dir = "./ClassVoiceMonitor/logs"
-        os.makedirs(log_dir, exist_ok=True)
+        log_dir = "./ClassVoiceMonitor/records"
+        log_dir_raw = "./ClassVoiceMonitor/records/raw"
+        os.makedirs(log_dir_raw, exist_ok=True)
 
         # 生成文件名
         timestamp = self.start_time.strftime("%Y%m%d_%H%M%S")
-        filename = f"早读报告_{timestamp}.txt"
+        filename = f"监测报告_{timestamp}.txt"
         filepath = os.path.join(log_dir, filename)
+
+        filename_raw = f"{timestamp}.json"
+        filepath = os.path.join(log_dir, filename)
+        filepath_raw = os.path.join(log_dir_raw, filename_raw)
 
         # 写入文件
         try:
             with open(filepath, 'w', encoding='utf-8') as f:
                 f.write(self.generate_report_text(report_data))
             logger.info(f"报告已保存到: {filepath}")
+
+            with open(filepath_raw, 'w', encoding='utf-8') as fr:
+                json.dump(report_data, fr)
+            logger.info(f"JSON已保存到: {filepath_raw}")
+
         except Exception as e:
             logger.error(f"保存报告失败: {str(e)}")
 
